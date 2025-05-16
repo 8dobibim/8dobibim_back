@@ -1,0 +1,35 @@
+#kubernetes/manifests/nginx-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment  # 파드의 생성, 업데이트, 스케일링을 관리하는 리소스
+metadata:
+  name: nginx-ab-proxy  # Deployment 이름
+  namespace: default
+  labels:
+    app: nginx-ab-proxy  # 서비스와 매칭되는 라벨
+spec:
+  replicas: 1  # 실행할 파드 수
+  selector:
+    matchLabels:
+      app: nginx-ab-proxy  # 이 라벨을 가진 파드를 관리 대상으로 설정
+  template:
+    metadata:
+      labels:
+        app: nginx-ab-proxy
+    spec:
+      containers:
+        - name: nginx  # 컨테이너 이름
+          image: nginx:latest  # 최신 nginx 이미지 사용
+          ports:
+            - containerPort: 80  # 컨테이너 내부 HTTP 포트
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf  # 설정 파일을 nginx 경로에 덮어쓰기
+              subPath: nginx.conf  # ConfigMap의 nginx.conf key만 파일처럼 마운트
+            - name: nginx-logs
+              mountPath: /var/log/nginx  # 로그 저장용 마운트 (로그 파일 위치)
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config  # 위에서 정의한 ConfigMap 참조
+        - name: nginx-logs
+          emptyDir: {}  # 임시 디스크 공간 (파드가 사라지면 로그도 삭제됨)

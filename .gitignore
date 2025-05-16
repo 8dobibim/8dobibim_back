@@ -1,7 +1,7 @@
 # .gitignore
 
 # 환경 변수 파일
-.env
+docker-related/.env
 
 # GitHub Actions Runner 디렉토리 (러너 설치 경로에 따라 수정)
 actions-runner/
@@ -14,8 +14,12 @@ _work/
 __pycache__/
 .vscode/
 
+
 #terraform 디렉토리 및 상태파일
 .terraform
 .terraform.lock.hcl
-terraform-related/terraform_code_1/terraform.tfstate
-terraform-related/terraform_code_1/terraform.tfstate.backup
+terraform-related/terraform/terraform.tfstate
+terraform-related/terraform/terraform.tfstate.backup
+terraform-related/terraform/terraform.tfvars
+terraform-related/terraform/.terraform.lock.hcl
+terraform-related/terraform/.terraform/providers/registry.terraform.io

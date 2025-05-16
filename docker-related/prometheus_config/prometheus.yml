@@ -1,4 +1,4 @@
-# prometheus.yml
+# docker-related/prometheus_config/prometheus.yml
 
 global:
   scrape_interval: 15s # 기본 스크랩 간격

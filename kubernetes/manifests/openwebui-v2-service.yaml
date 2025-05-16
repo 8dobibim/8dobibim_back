@@ -1,0 +1,13 @@
+#kubernetes/manifests/openwebui-v2-service.yaml
+apiVersion: v1  # Kubernetes core API 그룹 (Service는 항상 v1)
+kind: Service  # 클러스터 내부 또는 외부 트래픽을 파드에 전달하는 리소스
+metadata:
+  name: openwebui-v2  # 서비스 이름 (DNS 이름: openwebui-v2.default.svc.cluster.local)
+  namespace: default  # 서비스가 생성될 네임스페이스
+spec:
+  selector:
+    app: openwebui-v2  # 이 라벨을 가진 파드를 연결 대상으로 지정
+  ports:
+    - protocol: TCP  # 사용할 네트워크 프로토콜 (기본: TCP)
+      port: 8080      # 서비스가 노출하는 포트 (클러스터 내부에서 사용됨)
+      targetPort: 8080  # 실제 파드(컨테이너) 내부에서 열려 있는 포트

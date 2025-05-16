@@ -1,0 +1,65 @@
+#kubernetes/manifests/nginx-config.yaml
+apiVersion: v1
+kind: ConfigMap  # 설정 데이터를 key-value 형식으로 저장하는 리소스
+metadata:
+  name: nginx-config  # ConfigMap 이름
+  namespace: default  # 배포 대상 네임스페이스
+data:
+  nginx.conf: |  # nginx 설정 파일 내용 시작 (멀티라인)
+    worker_processes auto;  # 워커 프로세스 자동 설정
+    events {
+      worker_connections 1024;  # 워커당 최대 연결 수
+    }
+    http {
+      include       mime.types;  # MIME 타입 정의
+      default_type  application/octet-stream;  # 기본 타입
+
+      sendfile        on;  # sendfile() 사용으로 파일 전송 성능 향상
+      keepalive_timeout  65;  # keep-alive 타임아웃 설정
+
+      upstream openwebui_v1_servers {
+        server openwebui-v1:8080;  # V1 서비스 대상 (서비스 이름 기준 DNS)
+      }
+      upstream openwebui_v2_servers {
+        server openwebui-v2:8080;  # V2 서비스 대상
+      }
+
+      split_clients "$remote_addr" $ab_test_group {
+        80% openwebui_v1_servers;  # IP 기반으로 80%는 V1
+        * openwebui_v2_servers;    # 나머지는 V2로
+      }
+
+      # 로그에 A/B 테스트 그룹 정보를 포함시킨 사용자 정의 포맷
+      log_format ab_test_loki_format '$remote_addr - $remote_user [$time_local] "$request" '
+                                     '$status $body_bytes_sent "$http_referer" '
+                                     '"$http_user_agent" "$http_x_forwarded_for" '
+                                     '"$ab_test_group"';
+
+      server {
+        listen 80;  # HTTP 요청 리슨
+        server_name localhost;
+
+        access_log /var/log/nginx/access.log ab_test_loki_format;  # 사용자 정의 로그 포맷 사용
+
+        location / {
+          # 클라이언트 요청 정보를 백엔드에 전달
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+
+          # A/B 테스트 그룹에 따라 요청 분기
+          proxy_pass http://$ab_test_group;
+
+          # 쿠키로 A/B 테스트 그룹 정보 전달 (선택)
+          add_header Set-Cookie "ab_test=$ab_test_group; path=/";
+        }
+
+        # nginx 상태 페이지 (모니터링용)
+        location /nginx_status {
+          stub_status on;
+          allow all;
+          deny all;  # 나머지는 차단
+        }
+      }
+    }

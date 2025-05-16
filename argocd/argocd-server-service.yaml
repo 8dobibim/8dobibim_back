@@ -1,0 +1,17 @@
+#argocd/argocd-server-service.yaml
+apiVersion: v1  # Kubernetes core API 버전
+kind: Service  # 리소스 종류는 Service (클러스터 내에서 네트워크 접근을 위해 사용)
+metadata:
+  name: argocd-server  # 서비스 이름 (kubectl로 접근 시 사용)
+  namespace: argocd  # 서비스가 존재할 네임스페이스 (ArgoCD가 설치된 네임스페이스)
+spec:
+  type: LoadBalancer  # 외부에서 접근 가능한 로드밸런서 타입의 서비스 (클라우드 환경에서 퍼블릭 IP 부여됨)
+  selector:
+    app.kubernetes.io/name: argocd-server  # 이 레이블을 가진 파드에 트래픽을 전달
+  ports:
+    - name: http  # 첫 번째 포트는 HTTP 용
+      port: 80  # 클러스터 외부에서 접근할 포트 번호
+      targetPort: 8080  # 파드 내에서 실제로 서비스되는 포트 (ArgoCD 서버는 8080 포트를 사용)
+    - name: https  # 두 번째 포트는 HTTPS 용
+      port: 443  # 클러스터 외부에서 접근할 HTTPS 포트
+      targetPort: 8080  # 내부적으로는 동일한 8080 포트를 사용 (TLS Termination은 LoadBalancer가 처리)

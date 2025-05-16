@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels:
+    app: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      containers:
+      - name: litellm
+        image: ghcr.io/berriai/litellm:main-stable
+        ports:
+        - containerPort: 4000
+        
+        # envFrom 제거하고 개별 환경 변수로 변경
+        env:
+          # API 키 관련 환경 변수
+          - name: AZURE_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials  # Terraform으로 생성한 Secret 이름
+                key: azure-api-key
+          - name: AZURE_API_BASE
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials
+                key: azure-api-base
+          - name: AZURE_API_VERSION
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials
+                key: azure-api-version
+          - name: GEMINI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials
+                key: gemini-api-key
+                
+          # LiteLLM 관련 환경 변수
+          - name: LITELLM_MASTER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials
+                key: litellm-master-key
+          - name: LITELLM_SALT_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-credentials
+                key: litellm-salt-key
+                
+          # 데이터베이스 관련 환경 변수
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: db-credentials  # 데이터베이스 정보를 저장한 Secret
+                key: database-url
+     #command 변경           
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        command: []  # 비워두기
+        args: []     # 비워두기
+      volumes:
+      - name: config-volume
+        configMap:
+          name: litellm-config  # Terraform에서 생성한 ConfigMap 이름

@@ -1,0 +1,13 @@
+#kubernetes/nginx-service.yaml
+apiVersion: v1
+kind: Service  # 네트워크 서비스 정의
+metadata:
+  name: nginx-ab-proxy  # 서비스 이름
+  namespace: default
+spec:
+  selector:
+    app: nginx-ab-proxy  # 이 라벨을 가진 파드에 트래픽 전달
+  ports:
+    - port: 80  # 클러스터 외부 접근 포트
+      targetPort: 80  # 실제 컨테이너 포트
+  type: LoadBalancer  # 클라우드 환경에서 퍼블릭 IP를 할당받아 외부 노출

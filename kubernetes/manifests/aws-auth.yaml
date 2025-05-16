@@ -1,0 +1,18 @@
+#kubernetes/manifests/aws-auth.yaml
+apiVersion: v1  # Kubernetes core API 버전
+kind: ConfigMap  # 리소스 종류는 ConfigMap (설정 데이터를 key-value 형태로 저장)
+metadata:
+  name: aws-auth  # ConfigMap 이름은 반드시 'aws-auth'이어야 EKS에서 인식함
+  namespace: kube-system  # aws-auth는 kube-system 네임스페이스에 존재해야 함 (EKS 시스템 구성요소 위치)
+data:
+  mapRoles: |  # IAM 역할(Role)과 Kubernetes 사용자(User)를 매핑해주는 항목
+    - rolearn: arn:aws:iam::830325869889:role/eks-node-role-openwebui  # EC2 워커 노드에 연결된 IAM 역할
+      username: system:node:{{EC2PrivateDNSName}}  # Kubernetes 노드로 인식될 사용자 이름 (템플릿 변수 사용)
+      groups:
+        - system:bootstrappers  # 초기 노드 부트스트래핑을 위한 그룹
+        - system:nodes  # 노드로서 권한을 부여받기 위한 필수 그룹
+
+    - rolearn: arn:aws:iam::830325869889:role/eks-cluster-role  # 클러스터 관리용 IAM 역할 (admin 권한 부여)
+      username: admin  # 이 역할로 인증된 사용자는 'admin'이라는 이름으로 인식됨
+      groups:
+        - system:masters  # Kubernetes 클러스터의 최고 관리자 권한 그룹
