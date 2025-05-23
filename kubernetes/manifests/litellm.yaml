@@ -5,7 +5,7 @@ metadata:
   labels:
     app: litellm
 spec:
-  replicas: 1
+  replicas: 2  # 고가용성을 위해 2개로 증가
   selector:
     matchLabels:
       app: litellm
@@ -14,19 +14,26 @@ spec:
       labels:
         app: litellm
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - litellm
+            topologyKey: kubernetes.io/hostname
       containers:
       - name: litellm
         image: ghcr.io/berriai/litellm:main-stable
         ports:
         - containerPort: 4000
-        
-        # envFrom 제거하고 개별 환경 변수로 변경
         env:
-          # API 키 관련 환경 변수
           - name: AZURE_API_KEY
             valueFrom:
               secretKeyRef:
-                name: api-credentials  # Terraform으로 생성한 Secret 이름
+                name: api-credentials
                 key: azure-api-key
           - name: AZURE_API_BASE
             valueFrom:
@@ -43,8 +50,6 @@ spec:
               secretKeyRef:
                 name: api-credentials
                 key: gemini-api-key
-                
-          # LiteLLM 관련 환경 변수
           - name: LITELLM_MASTER_KEY
             valueFrom:
               secretKeyRef:
@@ -55,21 +60,35 @@ spec:
               secretKeyRef:
                 name: api-credentials
                 key: litellm-salt-key
-                
-          # db 관련 환경 변수
           - name: DATABASE_URL
             valueFrom:
               secretKeyRef:
-                name: db-credentials  # 데이터베이스 정보를 저장한 Secret
+                name: db-credentials
                 key: database-url
-     #command 변경           
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
         - name: config-volume
           mountPath: /app/config.yaml
           subPath: config.yaml
-        command: []  # 비워두기
-        args: []     # 비워두기
       volumes:
       - name: config-volume
         configMap:
-          name: litellm-config  # Terraform에서 생성한 ConfigMap 이름
+          name: litellm-config

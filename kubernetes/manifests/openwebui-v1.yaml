@@ -1,47 +1,68 @@
-#kubernetes/manifests/openwebui-v1.yaml
-#
-apiVersion: apps/v1  # Kubernetes에서 Deployment 리소스를 정의할 때 사용하는 API 버전
-kind: Deployment  # 파드의 생성, 업데이트, 복제 등을 관리하는 리소스
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: openwebui-v1  # Deployment 이름
-  namespace: default  # 배포될 네임스페이스
+  name: openwebui-v1
+  namespace: default
   labels:
-    app: openwebui-v1  # 이 Deployment 고유 라벨
-    ab-test-group: openwebui  # A/B 테스트용 공통 라벨 (v1/v2 공통)
-
+    app: openwebui-v1
+    ab-test-group: openwebui
 spec:
-  replicas: 1  # 실행할 파드 수 (1개 인스턴스 실행)
+  replicas: 2  # 고가용성을 위해 2개로 증가
   selector:
     matchLabels:
-      app: openwebui-v1  # 이 라벨을 가진 파드를 이 Deployment가 관리함
-
+      app: openwebui-v1
   template:
     metadata:
       labels:
-        app: openwebui-v1  # 서비스와 매칭되는 고유 식별자
-        ab-test-group: openwebui  # Nginx 프록시에서 그룹 매칭을 위한 공통 라벨
-
+        app: openwebui-v1
+        ab-test-group: openwebui
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - openwebui-v1
+            topologyKey: kubernetes.io/hostname
       containers:
-        - name: openwebui  # 컨테이너 이름
-          image: ghcr.io/open-webui/open-webui:v0.6.6  # 컨테이너에서 사용할 이미지 (v0.6.6 버전)
-
+        - name: openwebui
+          image: ghcr.io/open-webui/open-webui:v0.6.6
           ports:
-            - containerPort: 8080  # 컨테이너 내부에서 열리는 포트
-
+            - containerPort: 8080
           env:
             - name: OPENAI_API_BASE_URL
-              value: http://litellm:4000/  # LiteLLM 서비스 주소 (같은 네임스페이스에 존재해야 함)
+              value: http://litellm:4000/
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: api-credentials
                   key: litellm-master-key
-
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
           volumeMounts:
-            - name: openwebui-data  # 아래 정의된 볼륨을 이 컨테이너에 연결
-              mountPath: /app/backend/data  # 데이터를 저장할 경로 (OpenWebUI가 사용하는 경로)
-
+            - name: openwebui-data
+              mountPath: /app/backend/data
       volumes:
         - name: openwebui-data
-          emptyDir: {}  # 임시 디스크 볼륨. 파드가 삭제되면 데이터도 사라짐 (비영속)
+          persistentVolumeClaim:
+            claimName: openwebui-v1-data-pvc
