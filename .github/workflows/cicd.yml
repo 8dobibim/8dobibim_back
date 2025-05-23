@@ -4,7 +4,7 @@ name: Deploy to AWS EKS
 on:
   push:
     branches:
-      - eks-test  
+      - eks-check  
 
 jobs:
   deploy:
@@ -141,4 +141,3 @@ jobs:
         #  else
         #    echo "❌ Password configuration failed!"
         #    exit 1
-        #  fi

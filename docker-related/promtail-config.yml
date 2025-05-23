@@ -1,5 +1,4 @@
 #docker-related/promtail-config.yml
-# promtail-config.yml 파일 수정 내용
 
 server:
   http_listen_port: 9080
