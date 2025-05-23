@@ -1,27 +1,27 @@
-# VPA for OpenWebUI V1
+# OpenWebUI V1에 대한 Vertical Pod Autoscaler (VPA) 설정
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
-  name: openwebui-v1-vpa
-  namespace: default
+  name: openwebui-v1-vpa  # VPA 리소스 이름
+  namespace: default      # 대상 네임스페이스
 spec:
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: openwebui-v1
+    name: openwebui-v1    # 대상 디플로이먼트 명시
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Auto"     # 자동으로 리소스를 조정함 (실제 적용)
   resourcePolicy:
     containerPolicies:
-    - containerName: openwebui
-      minAllowed:
+    - containerName: openwebui  # VPA가 적용될 컨테이너 이름
+      minAllowed:               # 최소 자원 사용량 설정
         cpu: 250m
         memory: 256Mi
-      maxAllowed:
+      maxAllowed:               # 최대 자원 제한 (VPA가 초과 조정 못 하도록)
         cpu: 2
         memory: 2Gi
 ---
-# VPA for OpenWebUI V2
+# OpenWebUI V2에 대한 Vertical Pod Autoscaler (VPA) 설정
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -31,9 +31,9 @@ spec:
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: openwebui-v2
+    name: openwebui-v2    # 대상 디플로이먼트: openwebui-v2
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Auto"    # 자동 업데이트로 실제 파드에 자원 적용
   resourcePolicy:
     containerPolicies:
     - containerName: openwebui
@@ -44,7 +44,7 @@ spec:
         cpu: 2
         memory: 2Gi
 ---
-# VPA for LiteLLM
+# LiteLLM 디플로이먼트에 대한 Vertical Pod Autoscaler 설정
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -54,15 +54,15 @@ spec:
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: litellm
+    name: litellm         # 대상 디플로이먼트: litellm
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Auto"    # VPA가 자원을 실시간 자동 조정하도록 설정
   resourcePolicy:
     containerPolicies:
     - containerName: litellm
-      minAllowed:
+      minAllowed:         # 최소 리소스 설정 (부족할 경우 성능 저하 방지)
         cpu: 500m
         memory: 512Mi
-      maxAllowed:
+      maxAllowed:         # 최대 리소스 상한 설정 (과도한 조정 제한)
         cpu: 4
         memory: 4Gi

@@ -1,28 +1,51 @@
+# AWS ALB Ingress Controller를 위한 Ingress 리소스 정의
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: openwebui-ingress
-  namespace: default
+  name: openwebui-ingress              # Ingress 리소스 이름
+  namespace: default                   # 네임스페이스
   annotations:
+    # ALB Ingress Controller 사용을 명시 (기본 ingress-nginx가 아님)
     kubernetes.io/ingress.class: alb
+
+    # 인터넷에서 접근 가능한 퍼블릭 ALB로 생성
     alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # ALB 타겟 타입을 'ip'로 설정 (파드 IP 직접 연결, NodePort 불필요)
     alb.ingress.kubernetes.io/target-type: ip
+
+    # 헬스체크 경로 설정 (nginx-ab-proxy에서 /nginx_status 제공 필요)
     alb.ingress.kubernetes.io/healthcheck-path: /nginx_status
+
+    # 헬스체크 주기 (15초마다 확인)
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+
+    # 헬스체크 타임아웃 (응답이 5초 넘으면 실패)
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+
+    # 연속 2회 성공 시 헬시(healthy)로 간주
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+
+    # 연속 2회 실패 시 언헬시(unhealthy)로 간주
     alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+
+    # 성공으로 간주할 HTTP 상태 코드
     alb.ingress.kubernetes.io/success-codes: '200'
+
+    # ALB가 열 포트 설정 (HTTP:80, HTTPS:443)
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+
+    # HTTP 요청을 HTTPS로 리다이렉트
     alb.ingress.kubernetes.io/ssl-redirect: '443'
+
 spec:
   rules:
   - http:
       paths:
-      - path: /
-        pathType: Prefix
+      - path: /                     # 모든 요청에 대해 적용
+        pathType: Prefix            # 접두사 방식으로 경로 매칭
         backend:
           service:
-            name: nginx-ab-proxy
+            name: nginx-ab-proxy    # 요청을 전달할 서비스 이름
             port:
-              number: 80
+              number: 80            # 서비스의 포트 번호

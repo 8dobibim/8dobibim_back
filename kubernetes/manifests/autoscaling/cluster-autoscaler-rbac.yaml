@@ -1,51 +1,77 @@
+# Cluster Autoscaler가 사용할 서비스 어카운트 정의
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cluster-autoscaler
   namespace: kube-system
 ---
+# Cluster Autoscaler가 클러스터 전체 리소스를 조작할 수 있도록 권한을 부여하는 ClusterRole 정의
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: cluster-autoscaler
 rules:
+  # 노드, 파드, 서비스 등 주요 리소스 조회
 - apiGroups: [""]
   resources: ["nodes", "pods", "services", "replicationcontrollers", "persistentvolumeclaims", "persistentvolumes"]
   verbs: ["watch", "list", "get"]
+
+  # 디플로이먼트, 데몬셋 등 앱 리소스 조회
 - apiGroups: ["apps"]
   resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
   verbs: ["watch", "list", "get"]
+
+  # HPA 정보 확인 (스케일 조건 파악)
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["watch", "list", "get"]
+
+  # 잡과 크론잡 조회
 - apiGroups: ["batch"]
   resources: ["cronjobs", "jobs"]
   verbs: ["watch", "list", "get"]
+
+  # extensions API 그룹에서의 replicaSet, daemonSet 조회
 - apiGroups: ["extensions"]
   resources: ["replicasets", "daemonsets"]
   verbs: ["watch", "list", "get"]
+
+  # PDB 조회
 - apiGroups: ["policy"]
   resources: ["poddisruptionbudgets"]
   verbs: ["watch", "list"]
+
+  # 노드 상태 업데이트 (taint 수정 등)
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["update"]
+
+  # 파드 강제 제거 (eviction API 사용)
 - apiGroups: [""]
   resources: ["pods/eviction"]
   verbs: ["create"]
+
+  # 파드 상태 업데이트
 - apiGroups: [""]
   resources: ["pods/status"]
   verbs: ["update"]
+
+  # 서비스 엔드포인트 정보 수정
 - apiGroups: [""]
   resources: ["endpoints"]
   verbs: ["create", "get", "update"]
+
+  # 이벤트 리소스에 로그 생성
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create", "patch"]
+
+  # CSI 및 스토리지 클래스 정보 조회
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
   verbs: ["watch", "list", "get"]
 ---
+# 위에서 정의한 ClusterRole을 서비스 어카운트에 바인딩 (클러스터 전체 권한 적용)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -59,20 +85,25 @@ subjects:
   name: cluster-autoscaler
   namespace: kube-system
 ---
+# kube-system 네임스페이스 내에서 ConfigMap 등을 조작할 수 있는 Role 정의
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: cluster-autoscaler
   namespace: kube-system
 rules:
+  # ConfigMap 목록 확인 및 생성
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: ["create","list","watch"]
+
+  # 상태 업데이트용 ConfigMap에 대해 수정 권한 부여
 - apiGroups: [""]
   resources: ["configmaps"]
   resourceNames: ["cluster-autoscaler-status", "cluster-autoscaler-priority-expander"]
   verbs: ["delete", "get", "update", "watch"]
 ---
+# 위 Role을 kube-system 네임스페이스 내 서비스 어카운트에 바인딩
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

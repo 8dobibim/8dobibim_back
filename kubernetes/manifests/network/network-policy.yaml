@@ -1,4 +1,4 @@
-# OpenWebUI V1 Network Policy
+# OpenWebUI V1에 대한 NetworkPolicy
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -7,15 +7,15 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: openwebui-v1
+      app: openwebui-v1   # openwebui-v1 파드에만 적용
   policyTypes:
-  - Ingress
-  - Egress
+  - Ingress              # 수신 트래픽 제한
+  - Egress               # 발신 트래픽 제한
   ingress:
   - from:
     - podSelector:
         matchLabels:
-          app: nginx-ab-proxy
+          app: nginx-ab-proxy   # nginx-ab-proxy 파드로부터만 수신 허용
     ports:
     - port: 8080
       protocol: TCP
@@ -23,19 +23,19 @@ spec:
   - to:
     - podSelector:
         matchLabels:
-          app: litellm
+          app: litellm          # litellm 파드로의 발신 허용
     ports:
     - port: 4000
       protocol: TCP
   - to:
-    - namespaceSelector: {}
+    - namespaceSelector: {}     # DNS 질의를 위한 kube-dns로의 허용
     ports:
     - port: 53
       protocol: UDP
     - port: 53
       protocol: TCP
 ---
-# OpenWebUI V2 Network Policy
+# OpenWebUI V2에 대한 NetworkPolicy (V1과 동일한 구성)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -52,7 +52,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: nginx-ab-proxy
+          app: nginx-ab-proxy   # nginx-ab-proxy만 인바운드 허용
     ports:
     - port: 8080
       protocol: TCP
@@ -60,19 +60,19 @@ spec:
   - to:
     - podSelector:
         matchLabels:
-          app: litellm
+          app: litellm          # litellm으로의 아웃바운드 허용
     ports:
     - port: 4000
       protocol: TCP
   - to:
-    - namespaceSelector: {}
+    - namespaceSelector: {}     # DNS 요청 허용
     ports:
     - port: 53
       protocol: UDP
     - port: 53
       protocol: TCP
 ---
-# LiteLLM Network Policy
+# LiteLLM에 대한 NetworkPolicy
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -89,7 +89,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          ab-test-group: openwebui
+          ab-test-group: openwebui  # ab-test-group: openwebui 라벨이 있는 파드만 허용
     ports:
     - port: 4000
       protocol: TCP
@@ -97,12 +97,12 @@ spec:
   - to:
     - podSelector:
         matchLabels:
-          app: postgres
+          app: postgres            # PostgreSQL로의 DB 연결 허용
     ports:
     - port: 5432
       protocol: TCP
   - to:
-    - namespaceSelector: {}
+    - namespaceSelector: {}        # DNS 요청 허용
     ports:
     - port: 53
       protocol: UDP
@@ -110,12 +110,12 @@ spec:
       protocol: TCP
   - to:
     - ipBlock:
-        cidr: 0.0.0.0/0
+        cidr: 0.0.0.0/0            # 외부 인터넷(HTTPS) 접근 허용
     ports:
     - port: 443
       protocol: TCP
 ---
-# PostgreSQL Network Policy
+# PostgreSQL에 대한 NetworkPolicy
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -131,7 +131,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: litellm
+          app: litellm             # litellm 파드에서만 접근 허용
     ports:
     - port: 5432
       protocol: TCP
