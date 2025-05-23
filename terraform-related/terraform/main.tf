@@ -12,7 +12,7 @@ terraform {
 # AWS 프로바이더 설정
 provider "aws" {
   region  = var.aws_region  # 사용할 리전은 변수로부터 입력 받음
-  profile = "mentor-account"  # 🔄 멘토 계정 프로필 추가
+  
 }
 
 # 이미 존재하는 IAM Role을 참조하는 data 블록은 삭제하고 아래 코드로 대체
@@ -60,7 +60,7 @@ provider "kubernetes" {
   # AWS EKS 토큰을 사용한 인증
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name, "--profile", "mentor-account"]  # 🔄 프로필 추가
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]  
     command     = "aws"
   }
 }
