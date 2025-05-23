@@ -107,7 +107,7 @@ resource "kubernetes_secret" "db_credentials" {
   ]
 }
 
-# ConfigMap으로 LiteLLM 설정 생성 (민감하지 않은 설정)
+# ConfigMap으로 LiteLLM 설정 생성 
 resource "kubernetes_config_map" "litellm_config" {
   metadata {
     name      = "litellm-config"
