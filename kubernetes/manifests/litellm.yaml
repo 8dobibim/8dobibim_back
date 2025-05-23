@@ -56,7 +56,7 @@ spec:
                 name: api-credentials
                 key: litellm-salt-key
                 
-          # 데이터베이스 관련 환경 변수
+          # db 관련 환경 변수
           - name: DATABASE_URL
             valueFrom:
               secretKeyRef:
