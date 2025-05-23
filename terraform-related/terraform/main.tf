@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"      # AWS 프로바이더 사용
-      version = "~> 4.0"             # 4.x 버전대를 사용 (최신 주요 버전)
+      version = "~> 4.0"             # 4.x 버전대를 사용 
     }
   }
 }
