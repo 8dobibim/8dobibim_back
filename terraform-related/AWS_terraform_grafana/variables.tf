@@ -100,7 +100,7 @@ variable "postgres_db" {
   type        = string
 }
 
-variable "DATABASE_URL" {
+variable "database_url" {
   description = "Full PostgreSQL connection string"
   type        = string
 }

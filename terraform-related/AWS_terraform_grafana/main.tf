@@ -31,9 +31,12 @@ resource "aws_eks_node_group" "nodes" {
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = var.private_subnet_ids
   instance_types  = [var.instance_type]
-  desired_size    = var.node_group_desired_capacity
-  min_size        = var.node_group_min_capacity
-  max_size        = var.node_group_max_capacity
+
+  scaling_config {
+    desired_size = var.node_group_desired_capacity
+    min_size     = var.node_group_min_capacity
+    max_size     = var.node_group_max_capacity
+  }
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
@@ -41,6 +44,7 @@ resource "aws_eks_node_group" "nodes" {
     aws_iam_role_policy_attachment.eks_container_registry_policy,
   ]
 }
+
 
 # Kubernetes Provider 설정
 provider "kubernetes" {
