@@ -15,13 +15,13 @@ variable "cluster_name" {
 variable "vpc_id" {
   description = "ID of the VPC where the EKS cluster will be deployed"
   type        = string
-  # default = "vpc-0f11e0b7cb225055a" # TODO: 실제 VPC ID로 변경 필요
+  default = "vpc-0f11e0b7cb225055a" # TODO: 실제 VPC ID로 변경 필요
 }
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for EKS worker nodes"
   type        = list(string)
-  # default = ["subnet-020d530cbcaed0656", "subnet-06bed7cfb33b120c1"] # TODO: 실제 Subnet ID로 변경 필요
+  default = ["subnet-020d530cbcaed0656", "subnet-06bed7cfb33b120c1"] # TODO: 실제 Subnet ID로 변경 필요
 }
 
 variable "instance_type" {
@@ -46,6 +46,93 @@ variable "node_group_max_capacity" {
   description = "Maximum number of worker nodes in the EKS node group"
   type        = number
   default     = 3
+}
+
+variable "namespace" {
+  description = "Kubernetes namespace for all resources"
+  type        = string
+  default     = "default"
+}
+
+variable "litellm_api_port" {
+  description = "API port for LiteLLM"
+  type        = number
+  default     = 4000
+}
+
+variable "litellm_metrics_port" {
+  description = "Metrics port for LiteLLM"
+  type        = number
+  default     = 8000
+}
+
+variable "openwebui_port" {
+  description = "Service port for OpenWebUI"
+  type        = number
+  default     = 3000
+}
+
+variable "prometheus_port" {
+  description = "Service port for Prometheus"
+  type        = number
+  default     = 9090
+}
+
+variable "grafana_port" {
+  description = "Service port for Grafana"
+  type        = number
+  default     = 3001
+}
+
+
+variable "postgres_user" {
+  description = "PostgreSQL username"
+  type        = string
+}
+
+variable "postgres_password" {
+  description = "PostgreSQL password"
+  type        = string
+}
+
+variable "postgres_db" {
+  description = "PostgreSQL database name"
+  type        = string
+}
+
+variable "DATABASE_URL" {
+  description = "Full PostgreSQL connection string"
+  type        = string
+}
+
+variable "GEMINI_API_KEY" {
+  description = "Gemini API key for LiteLLM"
+  type        = string
+}
+
+variable "AZURE_API_KEY" {
+  description = "Azure OpenAI API key"
+  type        = string
+}
+
+variable "AZURE_API_BASE" {
+  description = "Azure OpenAI base endpoint"
+  type        = string
+}
+
+variable "AZURE_API_VERSION" {
+  description = "Azure OpenAI API version"
+  type        = string
+}
+
+variable "LITELLM_MASTER_KEY" {
+  description = "Master API key for LiteLLM"
+  type        = string
+}
+
+variable "LITELLM_SALT_KEY" {
+  description = "Salt key for LiteLLM"
+  type        = string
 }
 
 # 기존 NodePort 변수는 이제 LoadBalancer 타입을 사용할 것이므로 사실상 사용되지 않지만,

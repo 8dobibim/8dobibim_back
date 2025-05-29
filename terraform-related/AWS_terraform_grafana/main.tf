@@ -2,7 +2,7 @@
 
 # AWS Provider 설정
 provider "aws" {
-  region = var.aws_region # variables.tf에 정의된 AWS 리전 사용
+  region = var.aws_region
 }
 
 # EKS Cluster 생성
@@ -11,19 +11,17 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids         = var.private_subnet_ids
-    security_group_ids = [aws_security_group.eks_cluster_sg.id]
+    subnet_ids              = var.private_subnet_ids
+    security_group_ids      = [aws_security_group.eks_cluster_sg.id]
     endpoint_private_access = true
-    endpoint_public_access  = true # 필요에 따라 public access 제한 가능
+    endpoint_public_access  = true
   }
 
   kubernetes_network_config {
-    service_ipv4_cidr = "172.20.0.0/16" # EKS 기본 서비스 CIDR
+    service_ipv4_cidr = "172.20.0.0/16"
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-  ]
+  depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 }
 
 # EKS Node Group 생성
@@ -32,16 +30,10 @@ resource "aws_eks_node_group" "nodes" {
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = var.private_subnet_ids
-  instance_types  = [var.instance_type] # t3.medium 또는 t3.large 등으로 변경
+  instance_types  = [var.instance_type]
   desired_size    = var.node_group_desired_capacity
   min_size        = var.node_group_min_capacity
   max_size        = var.node_group_max_capacity
-
-  scaling_config {
-    desired_size = var.node_group_desired_capacity
-    min_size     = var.node_group_min_capacity
-    max_size     = var.node_group_max_capacity
-  }
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
@@ -50,33 +42,28 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
-# Kubernetes Provider 설정 (EKS 클러스터에 연결)
+# Kubernetes Provider 설정
 provider "kubernetes" {
   host                   = aws_eks_cluster.main.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.main.token
 }
 
-# EKS Cluster Auth Data Source
 data "aws_eks_cluster_auth" "main" {
   name = aws_eks_cluster.main.name
 }
 
-# EKS Cluster IAM Role
+# IAM Roles and Attachments
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-eks-cluster-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "eks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      },
-    ]
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "eks.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
@@ -85,21 +72,16 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
 }
 
-# EKS Node IAM Role
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.cluster_name}-eks-node-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      },
-    ]
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
@@ -118,17 +100,17 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# Security Group for EKS Cluster
+# Security Group
 resource "aws_security_group" "eks_cluster_sg" {
   name        = "${var.cluster_name}-sg"
   description = "Security group for EKS cluster"
-  vpc_id      = var.vpc_id # variables.tf에 정의된 VPC ID 사용
+  vpc_id      = var.vpc_id
 
   ingress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["10.38.0.0/16"] # TODO: 실제 환경에서는 특정 IP로 제한
+    cidr_blocks = ["10.38.0.0/16"]
   }
 
   egress {
@@ -139,8 +121,7 @@ resource "aws_security_group" "eks_cluster_sg" {
   }
 }
 
-# PersistentVolumeClaim (EKS 환경에 맞게 StorageClass 설정 필요)
-# AWS EBS CSI Driver를 설치했다면, StorageClass를 정의하여 동적 프로비저닝 가능
+# PVC for PostgreSQL
 resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
   metadata {
     name      = "postgres-pvc"
@@ -149,32 +130,26 @@ resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {
-      requests = {
-        storage = "5Gi"
-      }
+      requests = { storage = "5Gi" }
     }
-    storage_class_name = "gp2" # 또는 "gp3" 등 AWS EBS StorageClass 이름
+    storage_class_name = "gp2"
   }
 }
 
-# --- Service Definitions (NodePort -> LoadBalancer) ---
-
-# LiteLLM Service (ClusterIP -> LoadBalancer)
+# Kubernetes Services
+# LiteLLM
 resource "kubernetes_service" "litellm_service" {
   metadata {
     name      = "litellm-service"
     namespace = var.namespace
     annotations = {
-      # AWS Load Balancer Controller를 사용한다면 Ingress Resource를 사용하는 것이 더 권장됩니다.
-      # 여기서는 Service Type: LoadBalancer로 직접 생성하는 예시입니다.
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb" # 또는 "elb"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing" # 또는 "internal"
-      # "service.beta.kubernetes.io/aws-load-balancer-healthcheck-path" = "/health" # 헬스 체크 경로
+      "service.beta.kubernetes.io/aws-load-balancer-type"    = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"  = "internet-facing"
     }
   }
   spec {
     selector = {
-      app = kubernetes_deployment.litellm_deployment.spec[0].selector[0].match_labels.app
+      app = "litellm"
     }
     port {
       name        = "api"
@@ -183,23 +158,23 @@ resource "kubernetes_service" "litellm_service" {
       target_port = var.litellm_api_port
     }
     port {
-      name        = "metrics" # Prometheus 스크래핑을 위한 포트
+      name        = "metrics"
       protocol    = "TCP"
       port        = var.litellm_metrics_port
       target_port = var.litellm_metrics_port
     }
-    type = "LoadBalancer" # AWS 환경에서는 LoadBalancer로 변경
+    type = "LoadBalancer"
   }
 }
 
-# OpenWebUI Service (NodePort -> LoadBalancer)
+# OpenWebUI
 resource "kubernetes_service" "openwebui_service" {
   metadata {
     name      = "openwebui-service"
     namespace = var.namespace
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-type"    = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"  = "internet-facing"
     }
   }
   spec {
@@ -211,57 +186,218 @@ resource "kubernetes_service" "openwebui_service" {
       port        = var.openwebui_port
       target_port = var.openwebui_port
     }
-    type = "LoadBalancer" # AWS 환경에서는 LoadBalancer로 변경
+    type = "LoadBalancer"
   }
 }
 
-# Prometheus Service (NodePort -> LoadBalancer)
+# Prometheus
 resource "kubernetes_service" "prometheus_service" {
   metadata {
     name      = "prometheus-service"
     namespace = var.namespace
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-type"    = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"  = "internet-facing"
     }
   }
   spec {
     selector = {
-      app = kubernetes_deployment.prometheus_deployment.spec[0].selector[0].match_labels.app
+      app = "prometheus"
     }
     port {
       protocol    = "TCP"
       port        = var.prometheus_port
       target_port = var.prometheus_port
     }
-    type = "LoadBalancer" # AWS 환경에서는 LoadBalancer로 변경
+    type = "LoadBalancer"
   }
 }
 
-# Grafana Service (NodePort -> LoadBalancer)
+# Grafana
 resource "kubernetes_service" "grafana_service" {
   metadata {
     name      = "grafana-service"
     namespace = var.namespace
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-type"    = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"  = "internet-facing"
     }
   }
   spec {
     selector = {
-      app = kubernetes_deployment.grafana_deployment.spec[0].selector[0].match_labels.app
+      app = "grafana"
     }
     port {
       protocol    = "TCP"
       port        = var.grafana_port
       target_port = var.grafana_port
     }
-    type = "LoadBalancer" # AWS 환경에서는 LoadBalancer로 변경
+    type = "LoadBalancer"
   }
 }
 
-# 나머지 Deployment 및 ConfigMap, Secret 등은 이전 main.tf에서 거의 동일하게 유지됩니다.
-# PostgreSQL Deployment, LiteLLM Deployment, OpenWebUI Deployment (v1), Prometheus Deployment, Grafana Deployment
-# app_secrets, litellm_config, prometheus_config, grafana_datasources ConfigMap 등
-# 이들은 Kubernetes Deployment/Service의 정의이므로 EKS 클러스터가 생성되면 그 위에 배포됩니다.
+
+resource "kubernetes_deployment" "litellm_deployment" {
+  metadata {
+    name      = "litellm"
+    namespace = var.namespace
+    labels = {
+      app = "litellm"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "litellm"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "litellm"
+        }
+      }
+      spec {
+        container {
+          name  = "litellm"
+          image = "ghcr.io/berriai/litellm:main"
+
+          env {
+            name  = "DATABASE_URL"
+            value = var.database_url
+          }
+          env {
+            name  = "LITELLM_MASTER_KEY"
+            value = var.litellm_master_key
+          }
+          env {
+            name  = "LITELLM_SALT_KEY"
+            value = var.litellm_salt_key
+          }
+
+          port {
+            container_port = var.litellm_api_port
+          }
+          port {
+            container_port = var.litellm_metrics_port
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "openwebui_deployment" {
+  metadata {
+    name      = "openwebui"
+    namespace = var.namespace
+    labels = {
+      app = "openwebui"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "openwebui"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "openwebui"
+        }
+      }
+      spec {
+        container {
+          name  = "openwebui"
+          image = "ghcr.io/open-webui/open-webui:main"
+
+          env {
+            name  = "DATABASE_URL"
+            value = var.database_url
+          }
+          env {
+            name  = "LITELLM_PROXY_BASE_URL"
+            value = "http://litellm-service:${var.litellm_api_port}"
+          }
+
+          port {
+            container_port = var.openwebui_port
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "prometheus_deployment" {
+  metadata {
+    name      = "prometheus"
+    namespace = var.namespace
+    labels = {
+      app = "prometheus"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "prometheus"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "prometheus"
+        }
+      }
+      spec {
+        container {
+          name  = "prometheus"
+          image = "prom/prometheus:latest"
+
+          port {
+            container_port = var.prometheus_port
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "grafana_deployment" {
+  metadata {
+    name      = "grafana"
+    namespace = var.namespace
+    labels = {
+      app = "grafana"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "grafana"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "grafana"
+        }
+      }
+      spec {
+        container {
+          name  = "grafana"
+          image = "grafana/grafana:latest"
+
+          port {
+            container_port = var.grafana_port
+          }
+        }
+      }
+    }
+  }
+}

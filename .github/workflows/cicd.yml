@@ -206,10 +206,15 @@ jobs:
 
       - name: Wait for Deployments
         run: |
-          kubectl rollout status deployment/openwebui-v1 -n default --timeout=300s || true
-          kubectl rollout status deployment/openwebui-v2 -n default --timeout=300s || true
-          kubectl rollout status deployment/litellm -n default --timeout=300s || true
-          kubectl rollout status deployment/nginx-ab-proxy -n default --timeout=300s || true
+            for DEPLOY in openwebui-v1 openwebui-v2 litellm nginx-ab-proxy; do
+              if kubectl get deployment "$DEPLOY" -n default &> /dev/null; then
+                echo "Waiting for deployment $DEPLOY to complete..."
+                kubectl rollout status deployment/"$DEPLOY" -n default --timeout=300s
+              else
+                echo "Deployment $DEPLOY not found. Skipping."
+              fi
+            done
+        
 
       - name: Health Check
         run: |
