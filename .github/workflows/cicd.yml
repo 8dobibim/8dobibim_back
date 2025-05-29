@@ -1,3 +1,4 @@
+#.github/workflows/cicd.yml
 name: Deploy to AWS EKS
 
 on:
@@ -10,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TF_WORKING_DIR: ./terraform-related/terraform
+      TF_WORKING_DIR: ./terraform-related/AWS_terraform_grafana
       ARGOCD_PASSWORD_HASH: $2a$10$8K9jKpK7a9c6xL8zFiZ65uHpYz9ROzAyl3PzGp6u2Fj0CeLccL5tK
 
     steps:
