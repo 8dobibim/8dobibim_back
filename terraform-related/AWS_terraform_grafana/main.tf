@@ -1,18 +1,16 @@
-# main.tf (부분 수정 및 추가)
+# main.tf (EKS 클러스터 및 리소스 정의 - 방법 1: 기존 보안 그룹 직접 사용)
 
-# AWS Provider 설정
 provider "aws" {
   region = var.aws_region
 }
 
-# EKS Cluster 생성
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
-    security_group_ids      = [aws_security_group.eks_cluster_sg.id]
+    security_group_ids      = ["sg-02c5bb6b8d8d9e9c3"] # 기존 보안 그룹 ID 직접 참조
     endpoint_private_access = true
     endpoint_public_access  = true
   }
@@ -24,7 +22,6 @@ resource "aws_eks_cluster" "main" {
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 }
 
-# EKS Node Group 생성
 resource "aws_eks_node_group" "nodes" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-nodes"
@@ -45,8 +42,6 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
-
-# Kubernetes Provider 설정
 provider "kubernetes" {
   host                   = aws_eks_cluster.main.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
@@ -57,7 +52,6 @@ data "aws_eks_cluster_auth" "main" {
   name = aws_eks_cluster.main.name
 }
 
-# IAM Roles and Attachments
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-eks-cluster-role"
 
@@ -104,28 +98,6 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# Security Group
-resource "aws_security_group" "eks_cluster_sg" {
-  name        = "${var.cluster_name}-sg"
-  description = "Security group for EKS cluster"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["10.38.0.0/16"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# PVC for PostgreSQL
 resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
   metadata {
     name      = "postgres-pvc"
@@ -139,6 +111,7 @@ resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
     storage_class_name = "gp2"
   }
 }
+
 
 # Kubernetes Services
 # LiteLLM
