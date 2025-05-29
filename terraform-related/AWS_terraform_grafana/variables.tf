@@ -125,12 +125,12 @@ variable "AZURE_API_VERSION" {
   type        = string
 }
 
-variable "LITELLM_MASTER_KEY" {
+variable "litellm_master_key" {
   description = "Master API key for LiteLLM"
   type        = string
 }
 
-variable "LITELLM_SALT_KEY" {
+variable "litellm_salt_key" {
   description = "Salt key for LiteLLM"
   type        = string
 }
