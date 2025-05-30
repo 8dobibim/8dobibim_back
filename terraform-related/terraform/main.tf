@@ -4,14 +4,15 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"      # AWS 프로바이더 사용
-      version = "~> 4.0"             # 4.x 버전대를 사용 (최신 주요 버전)
+      version = "~> 4.0"             # 4.x 버전대를 사용 
     }
   }
 }
 
 # AWS 프로바이더 설정
 provider "aws" {
-  region = var.aws_region  # 사용할 리전은 변수로부터 입력 받음
+  region  = var.aws_region  # 사용할 리전은 변수로부터 입력 받음
+  
 }
 
 # 이미 존재하는 IAM Role을 참조하는 data 블록은 삭제하고 아래 코드로 대체
@@ -59,7 +60,7 @@ provider "kubernetes" {
   # AWS EKS 토큰을 사용한 인증
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]  
     command     = "aws"
   }
 }
@@ -106,7 +107,7 @@ resource "kubernetes_secret" "db_credentials" {
   ]
 }
 
-# ConfigMap으로 LiteLLM 설정 생성 (민감하지 않은 설정)
+# ConfigMap으로 LiteLLM 설정 생성 
 resource "kubernetes_config_map" "litellm_config" {
   metadata {
     name      = "litellm-config"
@@ -154,7 +155,7 @@ resource "kubernetes_config_map" "prometheus_config" {
             - targets: ['localhost:9090']
         - job_name: 'nginx'
           static_configs:
-            - targets: ['nginx_exporter:9113']
+            - targets: ['nginx-exporter:9113']
     EOT
   }
 

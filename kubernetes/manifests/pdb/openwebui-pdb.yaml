@@ -1,0 +1,35 @@
+# kubernetes/manifests/pdb/openwebui-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: openwebui-v1-pdb
+  namespace: default
+spec:
+  minAvailable: 1  # 항상 최소 1개 파드는 유지
+  selector:
+    matchLabels:
+      app: openwebui-v1
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: litellm-pdb
+  namespace: default
+spec:
+  minAvailable: 1  # LiteLLM도 항상 최소 1개 유지
+  selector:
+    matchLabels:
+      app: litellm
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: prometheus-pdb
+  namespace: default
+spec:
+  minAvailable: 1  # 모니터링 시스템 보호
+  selector:
+    matchLabels:
+      app: prometheus

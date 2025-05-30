@@ -8,6 +8,6 @@ eks_node_instance_type = "t3.large" # 워커 노드 EC2 타입
 eks_desired_capacity = 2
 eks_min_size         = 1
 eks_max_size         = 3
-eks_subnet_ids       = ["subnet-019f43696c656abef", "subnet-0a2759b0ead68f2c6"] # 퍼블릭/프라이빗 서브넷 ID들
-eks_vpc_id           = "vpc-02a36fe480ecccb85" # 클러스터가 들어갈 VPC ID
+eks_subnet_ids       = ["subnet-086b68e382a3ec6bb", "subnet-029286415522f6678"] # 퍼블릭/프라이빗 서브넷 ID들
+eks_vpc_id           = "vpc-078d1731a5bb8c6b0" # 클러스터가 들어갈 VPC ID
 

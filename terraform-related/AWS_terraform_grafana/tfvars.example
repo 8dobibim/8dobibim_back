@@ -1,0 +1,38 @@
+# --- AWS 리전 설정 ---
+aws_region = "ap-northeast-2"
+
+# --- EKS 클러스터 설정 ---
+cluster_name = "llm-project-eks"
+vpc_id = "vpc-0f11e0b7cb225055a" # TODO: 실제 VPC ID로 변경 필요
+private_subnet_ids = ["subnet-020d530cbcaed0656", "subnet-06bed7cfb33b120c1"] # TODO: 실제 Subnet ID로 변경 필요
+instance_type = "t3.medium"
+node_group_desired_capacity = 2
+node_group_min_capacity = 1
+node_group_max_capacity = 3
+
+# --- Kubernetes 네임스페이스 설정 ---
+namespace = "default"
+
+# --- 애플리케이션 포트 설정 ---
+litellm_api_port = 4000
+litellm_metrics_port = 8000 # main.tf의 기본값과 일치하도록 수정
+openwebui_port = 3000 # main.tf의 기본값과 일치하도록 수정
+prometheus_port = 9090
+grafana_port = 3001 # main.tf의 기본값과 일치하도록 수정
+
+# --- 민감한 환경 변수 및 자격 증명 (매우 중요: 실제 값으로 대체) ---
+# 이 값들은 절대로 Git 저장소에 직접 커밋해서는 안 됩니다!
+# 대신 `terraform apply -var="VAR_NAME=VALUE"` 또는 CI/CD 파이프라인의 시크릿 관리 기능을 사용하세요.
+litellm_master_key = "<YOUR_ACTUAL_LITELLM_MASTER_KEY>" # 반드시 변경
+litellm_salt_key = "<YOUR_ACTUAL_LITELLM_SALT_KEY>"     # 반드시 변경
+GEMINI_API_KEY = "<YOUR_ACTUAL_GEMINI_API_KEY>"         # 반드시 변경
+AZURE_API_KEY = "<YOUR_ACTUAL_AZURE_API_KEY>"           # 반드시 변경
+AZURE_API_BASE = "https://your-azure-resource.openai.azure.com/" # 실제 Azure OpenAI Endpoint로 변경
+AZURE_API_VERSION = "2023-07-01-preview"                # 실제 API 버전으로 변경
+
+# PostgreSQL 데이터베이스 설정
+postgres_user = "<YOUR_ACTUAL_POSTGRES_USER>"           # 반드시 변경
+postgres_password = "<YOUR_ACTUAL_POSTGRES_PASSWORD>"   # 반드시 변경
+postgres_db = "<YOUR_ACTUAL_POSTGRES_DB_NAME>"          # 반드시 변경
+# PostgreSQL 데이터베이스 URL (예: postgresql://user:password@host:port/db)
+database_url = "postgresql://<YOUR_ACTUAL_POSTGRES_USER>:<YOUR_ACTUAL_POSTGRES_PASSWORD>@postgres-service:5432/<YOUR_ACTUAL_POSTGRES_DB_NAME>"

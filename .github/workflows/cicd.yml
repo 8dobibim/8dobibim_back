@@ -4,33 +4,32 @@ name: Deploy to AWS EKS
 on:
   push:
     branches:
-      - eks-test  
+      - eks-check  
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Ubuntu 최신 버전에서 실행
+    runs-on: ubuntu-latest
 
     env:
-      TF_WORKING_DIR: ./terraform-related/terraform  # Terraform 작업 디렉토리
-      ARGOCD_PASSWORD_HASH: $2a$10$8K9jKpK7a9c6xL8zFiZ65uHpYz9ROzAyl3PzGp6u2Fj0CeLccL5tK  # ArgoCD admin 비밀번호 해시
+      TF_WORKING_DIR: ./terraform-related/AWS_terraform_grafana
+      ARGOCD_PASSWORD_HASH: $2a$10$8K9jKpK7a9c6xL8zFiZ65uHpYz9ROzAyl3PzGp6u2Fj0CeLccL5tK
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4  # 코드 리포지토리에서 체크아웃
+        uses: actions/checkout@v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2  # Terraform 설정
+        uses: hashicorp/setup-terraform@v2
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4  # AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # GitHub secrets에서 AWS 액세스 키 가져오기
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # GitHub secrets에서 AWS 비밀 키 가져오기
-          aws-region: ${{ vars.AWS_REGION || 'ap-northeast-2' }}  # AWS 지역 설정
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
 
       - name: Set Secrets as Environment Variables
         run: |
-          # Terraform 변수로 직접 설정
           echo "TF_VAR_gemini_api_key=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
           echo "TF_VAR_azure_api_key=${{ secrets.AZURE_API_KEY }}" >> $GITHUB_ENV
           echo "TF_VAR_azure_api_base=${{ secrets.AZURE_API_BASE }}" >> $GITHUB_ENV
@@ -41,22 +40,22 @@ jobs:
           echo "TF_VAR_database_url=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
           echo "TF_VAR_litellm_master_key=${{ secrets.LITELLM_MASTER_KEY }}" >> $GITHUB_ENV
           echo "TF_VAR_litellm_salt_key=${{ secrets.LITELLM_SALT_KEY }}" >> $GITHUB_ENV
+
       - name: Terraform Init
-        run: terraform init  # Terraform 초기화
-        working-directory: ${{ env.TF_WORKING_DIR }}  # 작업 디렉토리 지정
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Plan
-        run: terraform plan -var-file="terraform.tfvars" -input=false  # Terraform 계획을 실행
-        working-directory: ${{ env.TF_WORKING_DIR }}  # 작업 디렉토리 지정
+        run: terraform plan -var-file="terraform.tfvars" -input=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file="terraform.tfvars" -input=false  # Terraform 적용
-        working-directory: ${{ env.TF_WORKING_DIR }}  # 작업 디렉토리 지정
+        run: terraform apply -auto-approve -var-file="terraform.tfvars" -input=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Update Kubeconfig
-        run: aws eks update-kubeconfig --region ap-northeast-2 --name openwebui  # EKS 클러스터에 대한 kubeconfig 파일 업데이트
+        run: aws eks update-kubeconfig --region ap-northeast-2 --name openwebui
 
-      # cicd.yml 파일 수정 부분
       - name: Apply aws-auth ConfigMap and wait for node
         run: |
           echo "Getting nodegroup role ARN..."
@@ -94,50 +93,157 @@ jobs:
   
           if [ "$COUNT" -eq 0 ]; then
             echo "❌ Timeout: No EKS nodes registered after 5 minutes."
-            kubectl get pods -n kube-system  # 디버깅 정보 추가
+            kubectl get pods -n kube-system
             kubectl describe configmap aws-auth -n kube-system
             exit 1
           fi
 
+      # ===== 필수 컴포넌트 설치 추가 =====
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Install AWS Load Balancer Controller
+        run: |
+          # IAM Policy 생성
+          curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.7.0/docs/install/iam_policy.json
+          
+          aws iam create-policy \
+            --policy-name AWSLoadBalancerControllerIAMPolicy-${{ github.run_id }} \
+            --policy-document file://iam_policy.json || true
+          
+          # CRDs 설치
+          kubectl apply -k "https://github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
+          
+          # Helm repo 추가
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+          
+          # AWS Load Balancer Controller 설치
+          helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=openwebui \
+            --set serviceAccount.create=true
+
+      - name: Install Metrics Server
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+      - name: Install EBS CSI Driver
+        run: |
+          # EBS CSI Driver addon 추가
+          aws eks create-addon \
+            --cluster-name openwebui \
+            --addon-name aws-ebs-csi-driver \
+            --resolve-conflicts OVERWRITE || true
+          
+          # Addon이 준비될 때까지 대기
+          sleep 60
+
+      - name: Create StorageClass
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: gp3
+          provisioner: ebs.csi.aws.com
+          parameters:
+            type: gp3
+            fsType: ext4
+          volumeBindingMode: WaitForFirstConsumer
+          allowVolumeExpansion: true
+          EOF
+      # ===== 여기까지 추가 =====
+
       - name: Install ArgoCD
         run: |
-          kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -  # ArgoCD 네임스페이스 생성
-          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml  # ArgoCD 설치
+          kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
       - name: Wait for ArgoCD to be Ready
         run: |
-          echo "Waiting for ArgoCD server pod to be ready..."  # ArgoCD 서버 Pod이 준비되기를 대기
-          kubectl wait --for=condition=available --timeout=180s deployment/argocd-server -n argocd  # 180초 동안 ArgoCD 서버가 준비되길 대기
+          echo "Waiting for ArgoCD server pod to be ready..."
+          kubectl wait --for=condition=available --timeout=180s deployment/argocd-server -n argocd
 
       - name: Expose ArgoCD Server with LoadBalancer
-        run: kubectl apply -f argocd/argocd-server-service.yaml  # ArgoCD 서버를 LoadBalancer로 노출하여 외부에서 접근 가능하게 설정
+        run: kubectl apply -f argocd/argocd-server-service.yaml
 
       - name: Apply ArgoCD Application
-        run: kubectl apply -f argocd/argocd-app.yaml  # ArgoCD 애플리케이션 배포
-    # 로그인 오류로 주석 처리
-    #  - name: Set ArgoCD admin password
-    #    run: |
-          # 평문 비밀번호 (your-password)를 bcrypt 해시로 변환
-          # 이 단계는 미리 해시를 계산하거나 동적으로 생성 가능
-    #      PASSWORD_HASH=${{ env.ARGOCD_PASSWORD_HASH }}
+        run: kubectl apply -f argocd/argocd-app.yaml
+
+      # ArgoCD가 아닌 직접 배포로 변경 (ArgoCD와 충돌 방지)
+      - name: Apply Kubernetes Manifests
+        run: |
+          # 디렉토리가 존재하는지 확인하고 적용
+          if [ -d "kubernetes/manifests/storage" ]; then
+            kubectl apply -f kubernetes/manifests/storage/
+          fi
           
-    #      echo "Patching ArgoCD admin password..."
-    #      kubectl -n argocd patch secret argocd-secret \
-    #        -p '{"stringData": {"admin.password": "'$PASSWORD_HASH'", "admin.passwordMtime": "'$(date +%FT%T%Z)'"}}'
+          if [ -d "kubernetes/manifests/database" ]; then
+            kubectl apply -f kubernetes/manifests/database/
+          fi
           
-    #      echo "Waiting for ArgoCD secret to update..."
-    #      sleep 5
+          # 기본 manifests 적용
+          kubectl apply -f kubernetes/manifests/
           
-     #     echo "Restarting ArgoCD server to apply new password..."
-     #     kubectl -n argocd rollout restart deployment argocd-server
+          if [ -d "kubernetes/manifests/autoscaling" ]; then
+            kubectl apply -f kubernetes/manifests/autoscaling/
+          fi
+          
+          if [ -d "kubernetes/manifests/network" ]; then
+            kubectl apply -f kubernetes/manifests/network/
+          fi
+          
+          if [ -d "kubernetes/manifests/ingress" ]; then
+            kubectl apply -f kubernetes/manifests/ingress/
+          fi
+          
+          if [ -d "kubernetes/manifests/monitoring" ]; then
+            kubectl apply -f kubernetes/manifests/monitoring/
+          fi
+
+      - name: Wait for Deployments
+        run: |
+            for DEPLOY in openwebui-v1 openwebui-v2 litellm nginx-ab-proxy; do
+              if kubectl get deployment "$DEPLOY" -n default &> /dev/null; then
+                echo "Waiting for deployment $DEPLOY to complete..."
+                kubectl rollout status deployment/"$DEPLOY" -n default --timeout=300s
+              else
+                echo "Deployment $DEPLOY not found. Skipping."
+              fi
+            done
         
-      #    echo "Waiting for ArgoCD server to restart (up to 2 minutes)..."
-      #    kubectl -n argocd rollout status deployment argocd-server --timeout=120s
+
+      - name: Health Check
+        run: |
+          echo "Waiting for all pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=openwebui-v1 --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=litellm --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=nginx-ab-proxy --timeout=300s || true
+       
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "Deployment failed. Rolling back..."
+          kubectl rollout undo deployment/openwebui-v1 || true
+          kubectl rollout undo deployment/openwebui-v2 || true
+          kubectl rollout undo deployment/litellm || true
+          kubectl rollout undo deployment/nginx-ab-proxy || true
+          exit 1
+
+      - name: Get Load Balancer URL
+        run: |
+          echo "Waiting for Load Balancer to be ready..."
+          sleep 30
           
-          # 설정이 제대로 적용되었는지 확인 (비밀번호 해시만 확인)
-       #   echo "Verifying password was set correctly..."
-        #  if kubectl -n argocd get secret argocd-secret -o jsonpath='{.data.admin\.password}' | base64 -d | grep -q "$PASSWORD_HASH"; then
-        #    echo "✅ Password successfully configured!"
-        #  else
-        #    echo "❌ Password configuration failed!"
-        #    exit 1
+          # ArgoCD LoadBalancer URL
+          ARGOCD_LB=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || echo "Not ready")
+          echo "ArgoCD available at: http://$ARGOCD_LB"
+          
+          # Application LoadBalancer URL (Ingress가 있는 경우)
+          if kubectl get ingress openwebui-ingress -n default 2>/dev/null; then
+            LB_URL=$(kubectl get ingress openwebui-ingress -n default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || echo "Not ready")
+            echo "Application available at: http://$LB_URL"
+          fi

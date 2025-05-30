@@ -1,46 +1,70 @@
-#kubernetes/manifests/openwebui-v2.yaml
-apiVersion: apps/v1  # Deployment 리소스를 정의하는 API 그룹
-kind: Deployment  # 파드의 생명주기와 스케일링을 관리하는 리소스
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: openwebui-v2  # Deployment의 이름
-  namespace: default  # 배포될 네임스페이스
+  name: openwebui-v2
+  namespace: default
   labels:
-    app: openwebui-v2            # 고유 식별 라벨 (v1과 구분)
-    ab-test-group: openwebui     # A/B 테스트 공통 라벨 (v1과 공유됨)
-
+    app: openwebui-v2
+    ab-test-group: openwebui
 spec:
-  replicas: 1  # 실행할 파드 수
+  replicas: 1
   selector:
     matchLabels:
-      app: openwebui-v2  # 이 라벨을 가진 파드만 이 Deployment에서 관리
-
+      app: openwebui-v2
   template:
     metadata:
       labels:
-        app: openwebui-v2         # 이 파드에 붙는 고유 라벨
-        ab-test-group: openwebui  # A/B 테스트용 공통 그룹 라벨
-
+        app: openwebui-v2
+        ab-test-group: openwebui
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - openwebui-v2
+              topologyKey: kubernetes.io/hostname
       containers:
-        - name: openwebui  # 컨테이너 이름
-          image: ghcr.io/open-webui/open-webui:main  # 사용할 이미지 (main 브랜치 최신 버전)
-
+        - name: openwebui
+          image: ghcr.io/open-webui/open-webui:main
           ports:
-            - containerPort: 8080  # 컨테이너 내부에서 열리는 포트
-
+            - containerPort: 8080
           env:
             - name: OPENAI_API_BASE_URL
-              value: http://litellm:4000/  # LiteLLM 프록시 서비스 주소 (같은 네임스페이스에 존재해야 함)
+              value: http://litellm:4000/
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: api-credentials
                   key: litellm-master-key
-
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
           volumeMounts:
             - name: openwebui-data
-              mountPath: /app/backend/data  # OpenWebUI의 데이터 경로를 외부 볼륨에 마운트
-
+              mountPath: /app/backend/data
       volumes:
         - name: openwebui-data
-          emptyDir: {}  # 휘발성 볼륨. 파드가 재시작되면 데이터는 사라짐
+          persistentVolumeClaim:
+            claimName: openwebui-v2-data-pvc
