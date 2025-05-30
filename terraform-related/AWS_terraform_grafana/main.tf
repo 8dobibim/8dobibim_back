@@ -1,3 +1,4 @@
+
 # main.tf (EKS 클러스터 및 리소스 정의 - 방법 1: 기존 보안 그룹 직접 사용)
 
 provider "aws" {
@@ -9,6 +10,7 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
+
     subnet_ids              = var.private_subnet_ids
     security_group_ids      = ["sg-02c5bb6b8d8d9e9c3"] # 기존 보안 그룹 ID 직접 참조
     endpoint_private_access = true
@@ -29,6 +31,7 @@ resource "aws_eks_node_group" "nodes" {
   subnet_ids      = var.private_subnet_ids
   instance_types  = [var.instance_type]
 
+
   scaling_config {
     desired_size = var.node_group_desired_capacity
     min_size     = var.node_group_min_capacity
@@ -42,15 +45,22 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
+
+# Kubernetes Provider 설정 (EKS 클러스터에 연결)
 provider "kubernetes" {
   host                   = aws_eks_cluster.main.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.main.token
 }
 
+# EKS Cluster Auth Data Source
+
 data "aws_eks_cluster_auth" "main" {
   name = aws_eks_cluster.main.name
 }
+
+
+# EKS Cluster IAM Role
 
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-eks-cluster-role"
@@ -70,6 +80,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
 }
 
+# EKS Node IAM Role
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.cluster_name}-eks-node-role"
 

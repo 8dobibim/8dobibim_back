@@ -134,8 +134,3 @@ variable "litellm_salt_key" {
   description = "Salt key for LiteLLM"
   type        = string
 }
-
-# 기존 NodePort 변수는 이제 LoadBalancer 타입을 사용할 것이므로 사실상 사용되지 않지만,
-# 코드를 유연하게 유지하려면 남겨두거나, LoadBalancer 서비스의 특정 포트 매핑을 명시적으로 관리할 수 있습니다.
-# 여기서는 NodePort 변수를 그대로 유지하면서 LoadBalancer로 전환합니다.
-# AWS LoadBalancer는 기본적으로 Service Port를 외부에 노출합니다.
