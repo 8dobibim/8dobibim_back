@@ -1,8 +1,8 @@
 ## Terraform 변수 및 파라미터 설정 가이드
 
-본 Code는 인프라를 위한 세팅은 되어있지만, 실제 서비스 활용에 필요한 API key나 master-password와 관련된 내용은 포함되어 있지 않습니다. 때문에, 실제 apply 직전 tfvars.example 파일을 참고하여 개인화된 데이터를 포함한 terraform.tfvars 파일을 **로컬**에서 설정하시거나 AWS 상에서 추가하시는 과정이 필요합니다.   
+본 Code는 인프라를 위한 세팅은 되어있지만, 실제 서비스 활용에 필요한 API key나 master-password와 관련된 내용은 포함되어 있지 않습니다.   때문에, 실제 apply 직전 **tfvars.example** 파일을 참고하여 개인화된 데이터를 포함한 **terraform.tfvars 파일**을 **로컬에서 설정**하시거나 **AWS 상에 추가하는 과정이 필요**합니다.   
 
-여기서는 제공된 `variables.tf` 파일과 `main.tf` 파일을 바탕으로, 효과적인 변수 및 파라미터 설정 과정을 마크다운 형태로 설명하겠습니다.
+여기서는 제공된 `variables.tf` 파일의 내용을 바탕으로 `terraform.tfvars`에 들어가야 하는 내용을 설명해드리겠습니다.
 
 ### 1. `variables.tf` 파일 이해하기
 
@@ -35,7 +35,7 @@ variable "LITELLM_MASTER_KEY" {
 
 `variables.tf`에서 변수를 선언했다면, 실제로 Terraform을 실행할 때 이 변수들에 값을 할당해야 합니다. `tfvars` 파일은 변수 값을 저장하는 가장 일반적인 방법입니다.
 
-프로젝트 루트에 `terraform.tfvars`라는 파일을 생성하면 Terraform은 자동으로 이 파일을 로드합니다. 또는 `terraform apply -var-file="example.tfvars"`와 같이 특정 `.tfvars` 파일을 지정할 수도 있습니다.
+프로젝트 루트에 `terraform.tfvars`라는 파일이 있다면, Terraform은 자동으로 이 파일을 로드합니다. 또는 `terraform apply -var-file="example.tfvars"`와 같이 특정 `.tfvars` 파일을 지정할 수도 있습니다.
 
 ```terraform
 # --- 네임스페이스 설정 ---
@@ -112,9 +112,10 @@ openwebui_v2_weight = 30 # v2에 30% 트래픽
 
 ---
 
-### 3. `main.tf`에서의 변수 활용
+### 번외. `main.tf`에서의 변수 활용
 
-`main.tf`와 같은 실제 리소스를 정의하는 파일에서는 `var.<변수명>` 형식으로 `variables.tf`에서 선언된 변수들을 참조합니다.
+만약, 규정된 변수 외 다른 변수를 활용하거나 설정을 추가하고 싶으실 땐, `variables.tf`와 `terraform.tfvars` 외에도 `main.tf`에 대한 수정이 필요합니다.   
+`var.<변수명>` 형식으로 `variables.tf`에서 선언된 변수들을 참조할 수 있으며, 이 과정을 아래 예시 코드를 통해 확인해보세요.
 
 ```terraform
 # AWS Provider: variables.tf 에서 정의한 리전 사용
