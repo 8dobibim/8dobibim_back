@@ -33,7 +33,7 @@ variable "LITELLM_MASTER_KEY" {
 
 ---
 
-### 2. `example.tfvars` 파일을 통한 변수 값 지정
+### 2. `terraform.tfvars` 파일을 통한 변수 값 지정
 
 `variables.tf`에서 변수를 선언했다면, 실제로 Terraform을 실행할 때 이 변수들에 값을 할당해야 합니다. `tfvars` 파일은 변수 값을 저장하는 가장 일반적인 방법입니다.
 
