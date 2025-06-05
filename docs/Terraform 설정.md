@@ -3,7 +3,7 @@
 > **⏱️ 예상 소요시간**: 60-90분  
 > **💡 난이도**: 중급  
 > **📋 목표**: Terraform을 사용하여 AWS EKS 클러스터와 애플리케이션 스택 구축  
-> **📁 전체 코드**: [GitHub에서 확인하기](https://github.com/8dobibim/combined/tree/main/8dobibim_back/terraform-related/AWS_terraform_grafana
+> **📁 전체 코드**: [GitHub에서 확인하기](https://github.com/8dobibim/combined/tree/main/8dobibim_back/terraform-related/AWS_terraform_grafana)
 
 ---
 
