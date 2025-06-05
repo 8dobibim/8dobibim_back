@@ -3,7 +3,7 @@
 > **⏱️ 예상 소요시간**: 45-60분  
 > **💡 난이도**: 중급  
 > **📋 목표**: GitHub Actions를 사용하여 AWS EKS에 OpenWebUI 애플리케이션을 자동 배포하는 CI/CD 파이프라인 구축  
-> **📁 전체 코드**: [GitHub에서 확인하기](https://github.com/8dobibim/combined/blob/backend/8dobibim_back/.github/workflows/cicd.yml)
+> **📁 전체 코드**: [GitHub에서 확인하기](https://github.com/8dobibim/combined/blob/main/8dobibim_back/.github/workflows/cicd.yml)
 
 ---
 
